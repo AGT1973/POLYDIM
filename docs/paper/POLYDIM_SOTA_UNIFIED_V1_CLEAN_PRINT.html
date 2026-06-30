@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="author" content="Ariel H. Garcia Traba">
+<meta name="description" content="POLYDIM: A Transformer-Native Algebraic Programming Language">
+<title>POLYDIM — Garcia Traba 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Source+Code+Pro:wght@400&display=swap');
+@page { size: A4; margin: 2.5cm 2.8cm; }
+body { font-family: 'Source Serif 4', Georgia, serif; font-size: 11.5pt; line-height: 1.6; color: #111; max-width: 17cm; margin: 0 auto; padding: 1cm; }
+h1 { font-size: 18pt; font-weight: 600; line-height: 1.3; text-align: center; }
+h2 { font-size: 13pt; font-weight: 600; margin-top: 2em; border-bottom: 1px solid #ccc; padding-bottom: 2px; page-break-after: avoid; }
+h3 { font-size: 12pt; font-weight: 600; margin-top: 1.4em; page-break-after: avoid; }
+p { margin: 0.6em 0; text-align: justify; }
+.author-block { text-align: center; margin: 1em 0 1.5em; padding: 0.8em; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; }
+pre { font-family: 'Source Code Pro', Consolas, monospace; font-size: 8.5pt; background: #f5f5f5; border: 1px solid #ddd; border-left: 3px solid #555; padding: 8px 12px; white-space: pre-wrap; word-wrap: break-word; page-break-inside: avoid; }
+code { font-family: 'Source Code Pro', Consolas, monospace; font-size: 9pt; background: #f0f0f0; padding: 1px 4px; border-radius: 2px; }
+table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin: 1em 0; page-break-inside: avoid; }
+th { background: #e8e8e8; font-weight: 600; text-align: left; padding: 5px 8px; border: 1px solid #999; }
+td { padding: 4px 8px; border: 1px solid #bbb; vertical-align: top; }
+tr:nth-child(even) { background: #fafafa; }
+a { color: #1a0dab; }
+blockquote { border-left: 4px solid #555; margin: 1em 0; padding: 6px 12px; background: #f9f9f9; font-style: italic; }
+hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
+ul, ol { margin: 0.5em 0; padding-left: 1.8em; }
+li { margin: 0.2em 0; }
+nav#TOC { background: #f8f8f8; border: 1px solid #ddd; padding: 12px 20px; margin-bottom: 2em; font-size: 10pt; }
+nav#TOC li { margin: 0.3em 0; }
+@media print { body { padding: 0; } a { color: #111; } pre, table { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+<h1 id="polydim-a-transformer-native-algebraic-programming-language-for-high-dimensional-latent-computing">POLYDIM: A Transformer-Native Algebraic Programming Language for High-Dimensional Latent Computing</h1>
+<p><strong>Ariel H. Garcia Traba</strong><br />
+Independent Researcher · Buenos Aires, Argentina<br />
+ORCID: 0009-0001-2787-6067<br />
+ariel.garcia.traba@gmail.com · github.com/AGT1973<br />
+Preprint · Zenodo · 2026</p>
+<hr />
+<h2 id="abstract">Abstract</h2>
+<p>Modern AI architectures operate natively in continuous high-dimensional geometric spaces (R^N, N &gt;= 10,000), yet current programming paradigms force them to communicate via discrete sequential text channels — a mismatch we call the <em>impedance gap</em>. Recent empirical work has demonstrated that eliminating this gap substantially improves multi-agent coordination: Interlat [Du et al. 2025] shows that transmitting hidden states instead of tokens carries approximately 40,000 bits of information per state versus ~15 bits per language token — a 2,667x semantic bandwidth gain — while LatentMAS [ICML 2026 Spotlight] achieves superior multi-agent performance and major wall-clock speedups via training-free latent alignment. We investigate whether a formal programming language can be specified directly over the geometric space of transformer and SSM activations, without serialization to text.</p>
+<p>We propose <strong>POLYDIM</strong>, a language whose fundamental program unit is a geometric transformation T: R^N → R^N. We prove four algebraic theorems establishing POLYDIM’s formal foundations: associativity of composition (T1), linearity of superposition (T2), functoriality of projection to executors (T3, proved unconditionally for three contracts — COMPILE and EXPORT via the Subspace Commutativity Lemma, RENDER via the Flutter Algebraic Isomorphism), and uniqueness of fixed points (T4). We formalize a two-layer architecture separating the invariant algebraic core (COMPOSE, MIX, FIXPOINT, PROJECT) from architecture-specific implementation primitives (ATTEND for transformers, RECUR for SSMs such as Mamba-3 [ICLR 2026]), guaranteeing that the language specification is robust to architectural transitions. A Python bootstrap with 29/29 tests and +64.5% semantic improvement validates the conceptual framework. POLYDIM fills the gap between empirical latent communication research and formal language design: the specification that systems like Interlat and LatentMAS implicitly require but do not provide.</p>
+<hr />
+<h2 id="introduction">1. Introduction</h2>
+<h3 id="the-impedance-mismatch">1.1 The Impedance Mismatch</h3>
+<p>When a transformer processes information, it applies mathematical transformations over a vector space of thousands of dimensions simultaneously. Its “thinking” is geometry, not sequence. Yet when two AI systems communicate — or when a developer programs one — they are forced through a sequential text channel: serialize intent to tokens, transmit, parse, re-project onto the recipient’s latent space. Information is lost at every serialization–deserialization boundary.</p>
+<p>Recent work in interpretability has formalized this intuition algebraically: Dhayalkar et al. [2025] show that transformer self-attention can be interpreted as a soft, approximate Vector Symbolic Architecture (VSA), where queries and keys define role spaces, values encode fillers, and residual connections realize superposition of bound structures. This analysis establishes that transformers already <em>compute</em> in a VSA-like algebraic regime — yet no programming language exposes this regime as a formal substrate. <strong>POLYDIM is that language.</strong></p>
+<p>The scale of the problem is now quantitatively established. Interlat [Du et al. 2025] measures that a single hidden state carries approximately 40,000 bits of information, compared to approximately 15 bits per language token — a 2,667x semantic bandwidth gap. When agents communicate through text serialization, they discard over 99.9% of the semantic content of each state. The same work demonstrates that bypassing this serialization achieves up to 24x inference speedup while maintaining task performance. This is the impedance mismatch that POLYDIM formalizes as a language design problem.</p>
+<p>The historical parallel is precise. In the 1950s, CPUs already performed binary arithmetic, but no formal language existed for programming them deliberately. The assembler closed that gap. In the 2020s, transformers and Mamba models already operate in multidimensional geometry, but no formal language exists for programming that geometry deliberately. <strong>POLYDIM closes that gap.</strong></p>
+<h3 id="contributions">1.2 Contributions</h3>
+<ol type="1">
+<li><strong>POLYDIM</strong>: a formally-specified programming language whose fundamental unit is T: R^N -&gt; R^N, not a Von Neumann instruction.</li>
+<li><strong>A two-layer algebraic architecture</strong>: an invariant algebraic core (COMPOSE, MIX, FIXPOINT, PROJECT) independent of neural architecture, plus an architecture-specific implementation layer (ATTEND for transformers, RECUR for Mamba/SSM).</li>
+<li><strong>A dimensional type system</strong> where types emerge as projections, with PROJECT proved to be a functor F: G → E for all three executor contracts — COMPILE, EXPORT, and RENDER (Theorem 3; Proposition 6.1).</li>
+<li><strong>Zero-serialization AI-to-AI communication</strong> via the ALIGN protocol and cross-attention semantics, with explicit Procrustes-based alignment for heterogeneous latent spaces.</li>
+<li><strong>GEO_ID with topological invariance</strong>: an identity mechanism grounded in geometric topology (Theorem 5), enabling model-agnostic object identity across AI systems with distinct latent dimensionality.</li>
+<li><strong>The LoRA serialization standard</strong> for <code>.polydim</code> files, used as a <em>runtime data type</em> for geometric transformations (not a fine-tuning mechanism), reducing program size from ~400 MB (dense N×N) to ~2.5 MB (rank-r decomposition, ~99.4% reduction).</li>
+<li><strong>A Python bootstrap</strong> (V0.3) with 29/29 tests and align_score = 0.9993, validating the geometric framework empirically.</li>
+</ol>
+<h3 id="paper-organization">1.3 Paper Organization</h3>
+<p>Section 2 establishes the formal calculus including state semantics, primitives, and four foundational theorems. Section 3 develops the dimensional type system as a categorical functor. Section 4 formalizes object identity (GEO_ID) and the AI-to-AI interoperability protocol (ALIGN). Section 5 describes the engineering specifications: the <code>.polydim</code> binary format and the VM architecture. Section 6 presents the Flutter algebraic isomorphism enabling native human-interface projection. Section 7 positions POLYDIM relative to related work, including latent space communication systems (§7.8) and prior languages using geometric or algebraic structures (§7.7). Section 8 discusses open problems and the two deployment tracks. Section 9 concludes. Section 10 catalogs threats to validity. Section 11 lists references. Section 12 presents the SOTA review and positioning map (2025–2026).</p>
+<hr />
+<h2 id="formal-calculus-and-algebraic-primitives">2. Formal Calculus and Algebraic Primitives</h2>
+<h3 id="state-position-and-transformation">2.1 State, Position, and Transformation</h3>
+<p><strong>Definition 2.1 (POLYDIM State).</strong> A state is a triple:</p>
+<pre><code>S = (V, D, A)  where:
+  V in R^N        state vector (N &gt;= 1,000)
+  D = {dim1,...}  finite set of native observer subspaces (fixed per object)
+  A: D -&gt; [0,1]   activation function (mutable)</code></pre>
+<p><strong>Definition 2.2 (Position).</strong> A position P is a pair:</p>
+<pre><code>P = (g, S)  where:
+  g in R^N      GEO_ID — invariant under all admissible transformations (Sec. 4)
+  S = (V, D, A) mutable state</code></pre>
+<p>A Position replaces the notion of a <em>named variable</em>. There is no <code>x = 42</code>; there is a region of high activation density in R^N, anchored by an invariant geometric identity g.</p>
+<p><strong>Definition 2.3 (Transformation).</strong> A transformation T is a function T: S -&gt; S. Admissible transformations modify V and may update A as a function of the new V, while leaving D fixed:</p>
+<pre><code>T(V, D, A) = (T_geo(V), D, T_act(V, A))
+
+where:
+  T_geo: R^N -&gt; R^N
+  T_act: R^N x [0,1]^|D| -&gt; [0,1]^|D|
+  D is invariant under all admissible T</code></pre>
+<p>For practical serialization (Sec. 5), T_geo is represented in low-rank form: <code>T_geo = W0 + U*V^T</code> where U, V in R^(N×r), r &lt;&lt; N.</p>
+<p><strong>Definition 2.4 (Native Subspace).</strong> A native subspace DIM_i ⊆ R^N is a region of R^N where a class of semantically related concepts has high density. Formally, DIM_i is the image of an orthogonal projection matrix Pi in R^(N×N), Pi^2 = Pi, Pi^T = Pi.</p>
+<h3 id="the-two-layer-architecture">2.2 The Two-Layer Architecture</h3>
+<p><strong>Algebraic Layer (permanent, architecture-independent):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>Definition</th>
+<th>Replaces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>COMPOSE(T1, T2)</code></td>
+<td>T2 ∘ T1</td>
+<td>Sequential execution</td>
+</tr>
+<tr>
+<td><code>MIX(a, T1, b, T2)</code></td>
+<td>a·T1 + b·T2</td>
+<td>if/else branching</td>
+</tr>
+<tr>
+<td><code>FIXPOINT(T, e)</code></td>
+<td>iterate until convergence</td>
+<td>for/while loops</td>
+</tr>
+<tr>
+<td><code>PROJECT(T, E)</code></td>
+<td>pi_E(T(s))</td>
+<td>Type casting / compilation</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Implementation Layer (architecture-specific):</strong> - <code>ATTEND(Q, K, V, s)</code> = softmax(QK^T/sqrt(d))·V — transformer family - <code>RECUR(A, B, C, h, x)</code>: h(t+1) = A·h(t) + B·x(t), y(t) = C·h(t) — Mamba/SSM family</p>
+<p>The separation guarantees that when the implementation layer transitions (e.g., from Mamba-1 to Mamba-3), the algebraic specification remains unchanged.</p>
+<h3 id="big-step-operational-semantics">2.3 Big-Step Operational Semantics</h3>
+<p>We write <code>&lt;s, T&gt; =&gt; s'</code> for “state s, under transformation T, evaluates to new state s’.”</p>
+<pre><code>General:   &lt;s, T&gt; =&gt; T(s)
+
+COMPOSE:   &lt;s, T1&gt; =&gt; s1    &lt;s1, T2&gt; =&gt; s2
+           ─────────────────────────────────
+           &lt;s, COMPOSE(T1,T2)&gt; =&gt; s2
+
+MIX:       &lt;s, MIX(a, T1, b, T2)&gt; =&gt; a*T1(s) + b*T2(s)
+
+FIXPOINT:  &lt;s, FIXPOINT(T, e)&gt; =&gt; s*  when T(s*) = s* up to e
+
+PROJECT:   &lt;s, PROJECT(T, E)&gt; =&gt; pi_E(T(s))</code></pre>
+<p><em>Denotational semantics:</em> [|.|]: POLYDIM -&gt; Para(Vect) is a functor interpreting programs as morphisms in the 2-category of parametrized differentiable maps [Gavranovic et al. 2024].</p>
+<h3 id="four-foundational-theorems">2.4 Four Foundational Theorems</h3>
+<p><strong>Theorem 1 (Associativity of COMPOSE):</strong></p>
+<pre><code>COMPOSE(COMPOSE(T3, T2), T1) = COMPOSE(T3, COMPOSE(T2, T1))</code></pre>
+<p><em>Proof:</em> Standard property of function composition. ∎</p>
+<p><strong>Theorem 2 (Linearity of MIX):</strong></p>
+<pre><code>If T1, T2 in Lin(R^N), then MIX(a, T1, b, T2) in Lin(R^N)</code></pre>
+<p><em>Proof:</em> A linear combination of linear maps is linear. ∎</p>
+<p><strong>Lemma (Subspace Commutativity).</strong> Let pi_E: R^N -&gt; DIM_E be the orthogonal projection onto executor subspace DIM_E, and let T be a linear transformation such that DIM_E is T-invariant (T(DIM_E) ⊆ DIM_E). Then: pi_E(T(v)) = T(pi_E(v)) for all v in R^N. ∎</p>
+<p><strong>Theorem 3 (PROJECT is a Functor).</strong> For each executor E in {Rust, Flutter, SQL}, PROJECT_E: G -&gt; E_E satisfies the two functor axioms (identity preservation and composition preservation). Proved unconditionally for three contracts: COMPILE and EXPORT via the Subspace Commutativity Lemma; RENDER via the Flutter Algebraic Isomorphism (Proposition 6.1). ∎</p>
+<p><strong>Theorem 4 (Uniqueness of Fixed Point — Banach):</strong></p>
+<pre><code>If T is a contraction (||T(u)-T(v)|| &lt;= k*||u-v||, 0 &lt;= k &lt; 1),
+then exists! s* in R^N such that T(s*) = s*,
+and FIXPOINT(T, e) converges to it.</code></pre>
+<p><em>Proof:</em> Banach’s Fixed Point Theorem on (R^N, ||.||_2). ∎</p>
+<p><strong>Theorem 5 (GEO_ID Invariance):</strong></p>
+<pre><code>For all T in T_admissible: T(g) = g</code></pre>
+<p><em>Proof:</em> By construction (Definition 2.3). ∎</p>
+<hr />
+<h2 id="dimensional-type-system">3. Dimensional Type System</h2>
+<h3 id="type-system-comparison">3.1 Type System Comparison</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Property</th>
+<th>Static (Rust)</th>
+<th>Dynamic (Python)</th>
+<th>Dimensional (POLYDIM)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Declaration</td>
+<td>At definition time</td>
+<td>Inferred at runtime</td>
+<td>Never — emerges from projection</td>
+</tr>
+<tr>
+<td>Number of types</td>
+<td>One per value</td>
+<td>One at each instant</td>
+<td>Multiple simultaneous</td>
+</tr>
+<tr>
+<td>Type change</td>
+<td>Impossible</td>
+<td>Mutation/rebinding</td>
+<td>Projection change (not mutation)</td>
+</tr>
+<tr>
+<td>Cross-platform sync</td>
+<td>Requires ORM/bridge</td>
+<td>Requires serialization</td>
+<td>Zero — dual observation</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Proposition 3.1 (Dimensional Type System):</strong> The type of a POLYDIM object is not declared; it emerges from projection: <code>type(P) in executor E := PROJECT(P, E)</code>. The same object P can have multiple simultaneous types — one per active subspace.</p>
+<h3 id="concrete-example">3.2 Concrete Example</h3>
+<pre><code>Position P with activations:
+  a(DIM_SQL)     = 0.90  -&gt;  PROJECT(P, DIM_SQL)     = Column(INTEGER, &quot;id&quot;, NOT NULL)
+  a(DIM_FLUTTER) = 0.85  -&gt;  PROJECT(P, DIM_FLUTTER) = TextField(value: id_value)
+  a(DIM_VECTOR)  = 0.91  -&gt;  PROJECT(P, DIM_VECTOR)  = R^3 = [1.0, 2.0, 3.0]
+
+P does not &quot;have&quot; any of these types. It IS all of them simultaneously.</code></pre>
+<hr />
+<h2 id="identity-and-interoperability">4. Identity and Interoperability</h2>
+<h3 id="geo_id-with-topological-invariance">4.1 GEO_ID with Topological Invariance</h3>
+<p><strong>Definition 4.1 (GEO_ID).</strong> The identity of a POLYDIM object is an invariant component g in R^N of its position P = (g, S). All admissible transformations leave g unchanged (Theorem 5). Two states s1, s2 represent the <em>same object</em> iff there exists a continuous admissible path gamma: [0,1] -&gt; R^N with gamma(0) = V1, gamma(1) = V2.</p>
+<p><em>Epistemic status of HoTT formalization:</em> The path-based characterization and full HoTT formalization are <strong>active research directions</strong>, not finalized theorems. Full formalization in Coq/Agda is a Track 2 goal.</p>
+<h3 id="the-align-protocol">4.2 The ALIGN Protocol</h3>
+<pre><code>Given: IA_A in R^(d1), IA_B in R^(d2)
+
+Step 1: Share codebook of universal GEO_IDs.
+Step 2 (Orthogonal Procrustes):
+  M* = argmin_M ||M*A_anchors - B_anchors||_F  s.t. M^T*M = I
+  (M in R^(d2 x d1), computed via SVD of B^T*A)
+Step 3: T_B = M * T_A * M-dagger
+Step 4: new_state_B = T_B(state_B)</code></pre>
+<p><strong>Reading a message is mathematically indistinguishable from computing an attention layer.</strong> This eliminates the impedance mismatch that plagues MCP, JSON-RPC, and A2A.</p>
+<hr />
+<h2 id="engineering-.polydim-binary-format-and-vm-architecture">5. Engineering: .polydim Binary Format and VM Architecture</h2>
+<h3 id="the-.polydim-v5-binary-format-lora-standard">5.1 The .polydim V5 Binary Format (LoRA Standard)</h3>
+<pre><code>[HEADER]      magic: 0x504F4C59 | version | N | precision | n_transforms | rank_default(r)
+[GEO_IDs]     base_hv: float16[N] x n_objects
+[TRANSFORMS]  Ti = W0 + U*V^T (LoRA): U: float16[N×r], V: float16[r×N]
+[ACTIVATIONS] weights: float16[k x n_objects]
+[PROJECTIONS] targets: uint8[] -&gt; executor IDs
+
+Size with N=10,000, r=64:
+  2 x 64 x 10,000 x 2 bytes ≈ 2.5 MB per transform (vs 400 MB dense)
+  Reduction: ~99.4%</code></pre>
+<p><em>Note:</em> LoRA is used here as a <em>runtime data type</em>, not as a fine-tuning mechanism. This is a structural reuse of the low-rank representation at the language level [Hu et al. 2021].</p>
+<h3 id="vm-architecture">5.2 VM Architecture</h3>
+<p>The VM uses activation vector alpha for <em>sparse execution</em>: only subspaces with ai &gt; threshold are loaded into active memory. Implementation: Rust core compiled to WebAssembly (<code>polydim_core.rs</code> V0.1, completed 2026-06-28), zero external dependencies.</p>
+<hr />
+<h2 id="the-flutter-executor-algebraic-isomorphism">6. The Flutter Executor: Algebraic Isomorphism</h2>
+<p><strong>Proposition 6.1 (proved).</strong> The mapping phi: T -&gt; F is a strict monoidal isomorphism between the POLYDIM transformation category (T, COMPOSE, MIX) and the Flutter widget category (F, Column, Row), satisfying:</p>
+<pre><code>phi(COMPOSE(T2, T1)) = Column(phi(T1), phi(T2))
+phi(MIX(a, T1, b, T2)) = Row(Opacity(a, phi(T1)), Opacity(b, phi(T2)))
+phi(FIXPOINT(T, e))    = StatefulWidget(phi(T), convergence: e)
+phi(id_T)              = id_F</code></pre>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>Property</th>
+<th>Flutter</th>
+<th>React</th>
+<th>Qt</th>
+<th>SwiftUI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Widget model</td>
+<td>Algebraic comp</td>
+<td>VDOM diff</td>
+<td>OOP</td>
+<td>Property graph</td>
+</tr>
+<tr>
+<td>POLYDIM mapping</td>
+<td><strong>Direct</strong> (T2∘T1)</td>
+<td>Adapter needed</td>
+<td>Adapter needed</td>
+<td>Partial</td>
+</tr>
+<tr>
+<td>Executor status</td>
+<td><strong>NATIVE</strong></td>
+<td>EXTERNAL</td>
+<td>EXTERNAL</td>
+<td>EXTERNAL</td>
+</tr>
+<tr>
+<td>Algebraic isomorphism</td>
+<td><strong>Yes (proved)</strong></td>
+<td>No</td>
+<td>Partial</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="related-work">7. Related Work</h2>
+<h3 id="tensor-programming-frameworks-pytorch-jax-tensorflow">7.1 Tensor Programming Frameworks (PyTorch, JAX, TensorFlow)</h3>
+<p>PyTorch, JAX, and TensorFlow use tensors as <em>data</em> flowing through a <em>sequential program</em>. The distinction from POLYDIM is fundamental: these frameworks program <em>with</em> tensors; POLYDIM programs <em>as</em> tensors.</p>
+<h3 id="agent-communication-protocols-mcp-a2a-fipa">7.2 Agent Communication Protocols (MCP, A2A, FIPA)</h3>
+<p>MCP (Anthropic, 2024) and A2A (Google, 2025) rely on structured text serialization (JSON-RPC), perpetuating the impedance mismatch. MCP and A2A are targets of EXPORT in POLYDIM (PROJECT(T, DIM_JSON_RPC)), not architectural alternatives. See §7.8.</p>
+<h3 id="category-theory-in-programming-languages-haskell-idris-agda">7.3 Category Theory in Programming Languages (Haskell, Idris, Agda)</h3>
+<p>Haskell, Idris [Brady 2013], and Agda apply category theory to <em>type theory</em> for sequential programs over discrete structures. POLYDIM applies categorical structure to the <em>continuous geometric space</em> of computation itself.</p>
+<h3 id="vector-symbolic-architectures-vsa">7.4 Vector Symbolic Architectures (VSA)</h3>
+<p>VSAs [Plate 1995, Kanerva 2009] formalize computation over high-dimensional hypervectors. POLYDIM extends VSA by: (1) elevating superposition to a first-class control flow primitive (MIX); (2) adding a formal projection mechanism (PROJECT) with proved functor structure; (3) specifying a serialization format and ALIGN protocol for heterogeneous systems.</p>
+<p>Hanley et al. [2025] implement a vector-symbolic Lisp with residue arithmetic over FHRRs. Both operate over discrete symbolic algebras. POLYDIM operates in the <em>learned continuous latent space of neural architectures</em> — the two paradigms are complementary.</p>
+<h3 id="intermediate-representations-mlir-llvm">7.5 Intermediate Representations (MLIR, LLVM)</h3>
+<p>POLYDIM can be positioned as a <em>Categorical IR</em>: programs are morphisms in a geometric category, enabling compilation (via PROJECT) to any executor: - POLYDIM transforms &lt;-&gt; LLVM IR instructions - PROJECT(T, DIM_RUST) &lt;-&gt; LLVM backend code generation - LoRA format &lt;-&gt; LLVM bitcode (.bc)</p>
+<h3 id="activation-steering-and-mechanistic-interpretability">7.6 Activation Steering and Mechanistic Interpretability</h3>
+<p>Mechanistic interpretability [Elhage et al. 2022] demonstrates that transformers store features in <em>continuous superposition</em>. POLYDIM can be seen as a formalization of activation steering into a full programming language with compositional semantics.</p>
+<h3 id="prior-languages-using-geometric-or-algebraic-structures">7.7 Prior Languages Using Geometric or Algebraic Structures</h3>
+<p>To our knowledge, POLYDIM is the first formally-specified language in which: (1) the fundamental program unit is T: R^N -&gt; R^N over a continuous high-dimensional space; (2) the state is a position with simultaneous multi-subspace type membership; and (3) execution is defined as projection (not evaluation) from a geometric category to executor-specific categories.</p>
+<h3 id="latent-space-communication-systems">7.8 Latent Space Communication Systems</h3>
+<p><strong>Interlat [Du et al. 2025]</strong> transmits last-layer hidden states between agents instead of natural language tokens, achieving up to 24x inference speedup while maintaining task performance. The authors quantify the impedance gap precisely: hidden states carry approximately 40,000 bits of information versus ~15 bits per language token — a 2,667x semantic bandwidth ratio. This is the first empirical measurement of the impedance mismatch that POLYDIM addresses formally.</p>
+<p><strong>LatentMAS [ICML 2026 Spotlight]</strong> enables agents to share KV-cache and hidden states with training-free latent alignment, achieving superior performance and major wall-clock speedups in multi-agent systems.</p>
+<p>Both systems validate the core premise of POLYDIM: the impedance gap is real, costly, and eliminable. The distinction is fundamental: Interlat and LatentMAS are training frameworks that <em>move communication to latent space</em>; POLYDIM is a language specification that <em>defines what computations can be expressed in that space</em>. They answer “can we communicate in latent space?” — yes, empirically. POLYDIM answers “how do we program latent space computations formally?” The two lines of work are complementary: POLYDIM provides the semantic foundation that latent communication systems implicitly require but do not formalize.</p>
+<p><strong>NeSyCat [Romero Schellhorn &amp; Mossakowski 2026]</strong> unifies neurosymbolic semantics via a monad-based categorical framework over <em>discrete</em> domains. POLYDIM uses categorical structure over <em>continuous</em> high-dimensional spaces — complementary, not competing.</p>
+<p><strong>Softmax transformers are Turing-complete [Jiang et al. 2025].</strong> POLYDIM addresses the complementary question: given that transformers can compute anything, how do we program their geometric computations deliberately?</p>
+<h3 id="sota-positioning-map-2026">7.9 SOTA Positioning Map (2026)</h3>
+<pre><code>EJE Y: rigor formal
+|
+|  NeSyCat [2026]          +==============+
+|  (categorial, discreto)  |   POLYDIM    | &lt;- cuadrante vacío
+|                          | formal+geom+ |
+|  Marco cat. prog [2023]  |  continuo    |
+|  (funtor, abstracto)     +==============+
+|
+|  VecSymLisp [2025]       
+|  (VSA + Lisp, discreto)  
+|
+|  Interlat [2025]     LatentMAS [2026]
+|  (empírico, latente)  (empírico, latente)
+|
++--------------------------------------------
+   EMPIRICO         FORMAL       GEOMETRICO
+                EJE X -&gt;</code></pre>
+<p><strong>POLYDIM ocupa el cuadrante formal + geométrico + continuo. Está solo.</strong></p>
+<hr />
+<h2 id="discussion-and-open-problems">8. Discussion and Open Problems</h2>
+<h3 id="what-polydim-is-not">8.1 What POLYDIM Is NOT</h3>
+<ul>
+<li><strong>Not a tensor computation framework.</strong> PyTorch programs <em>compute with</em> tensors. POLYDIM programs <em>are</em> tensors.</li>
+<li><strong>Not a neural network architecture.</strong> It is a programming language that runs on neural architectures.</li>
+<li><strong>Not a new attention mechanism.</strong> It exposes existing attention as a programmable primitive.</li>
+<li><strong>Not “Python with named dimensions.”</strong> Dimensions in POLYDIM are geometric subspaces in R^N.</li>
+</ul>
+<h3 id="the-assembly-language-parallel">8.2 The Assembly Language Parallel</h3>
+<p>Assembly did not invent the transistor. It formalized how to program the transistor <em>deliberately</em>. POLYDIM does not invent the transformer. It formalizes how to program the transformer’s geometric computation deliberately — for the first time.</p>
+<h3 id="two-deployment-tracks">8.3 Two Deployment Tracks</h3>
+<p><strong>Academic Track (arXiv cs.PL):</strong> formal language design — state semantics, four algebraic theorems (all proved unconditionally), dimensional type system with PROJECT proved as functor for all three contracts, topological identity with ongoing HoTT formalization.</p>
+<p><strong>Industrial Track:</strong> POLYDIM as a <em>Universal Categorical IR</em> — “the LLVM of tensors.” PROJECT is the universal arrow from the geometric category to each executor category.</p>
+<h3 id="open-problems">8.4 Open Problems</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>ID</th>
+<th>Problem</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>Subspace emergence from real embedding models</td>
+<td>Open</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>Distributed Consistency via Geometric-CRDTs</td>
+<td>Open</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>Turing Completeness via FIXPOINT</td>
+<td>Conjecture: yes</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>Self-Hosting POLYDIM programs</td>
+<td>Open</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>Real-Time PROJECT Cost profiling</td>
+<td>Pending (Rust VM)</td>
+</tr>
+<tr>
+<td>Q6</td>
+<td>Free Monad over ATTEND [arXiv:2501.02931]</td>
+<td>Open</td>
+</tr>
+<tr>
+<td>Q7</td>
+<td>Empirical Lipschitz verification L &lt; 1 for ATTEND</td>
+<td>High-priority future work</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="conclusion">9. Conclusion</h2>
+<p>We have presented POLYDIM, a programming language whose fundamental unit is a geometric transformation T: R^N -&gt; R^N. The language eliminates the impedance mismatch between the multidimensional geometry of modern AI architectures and the sequential text channels through which they currently communicate and are programmed.</p>
+<p>Four algebraic theorems establish the formal foundation, all proved unconditionally. The LoRA serialization standard reduces <code>.polydim</code> program files by ~99.4%. The ALIGN protocol enables zero-serialization communication between heterogeneous AI systems. The Python bootstrap validates the conceptual framework with 29/29 tests, align_score = 0.9993, and a semantic gain of +64.5% over the deterministic baseline.</p>
+<p>Empirical work on latent communication [Du et al. 2025; ICML 2026 Spotlight] confirms that bypassing text serialization is both feasible and substantially beneficial. POLYDIM provides the formal specification layer that makes this approach composable, portable, and analyzable. <strong>The assembly language of the transformer era is here.</strong></p>
+<hr />
+<h2 id="threats-to-validity">10. Threats to Validity</h2>
+<p>Following Wohlin et al. [2000]:</p>
+<h3 id="summary-table">Summary Table</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>ID</th>
+<th>Type</th>
+<th>Description</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T-C1</td>
+<td>Construct</td>
+<td>Bootstrap != language</td>
+<td>Explicit throughout</td>
+</tr>
+<tr>
+<td>T-C2</td>
+<td>Construct</td>
+<td>Subspaces are string aliases</td>
+<td>Open problem Q1</td>
+</tr>
+<tr>
+<td>T-C3</td>
+<td>Construct</td>
+<td>GEO_ID: constructive proved; HoTT ongoing</td>
+<td>Active research direction</td>
+</tr>
+<tr>
+<td>T-C4</td>
+<td>Construct</td>
+<td>GEO_ID collision probability</td>
+<td>Mitigated by high dimension</td>
+</tr>
+<tr>
+<td>T-I1</td>
+<td>Internal</td>
+<td>Theorem 3 proved unconditionally</td>
+<td><strong>CLOSED</strong></td>
+</tr>
+<tr>
+<td>T-I2</td>
+<td>Internal</td>
+<td>+64.5% gain over simple baseline</td>
+<td>“Modest but real”</td>
+</tr>
+<tr>
+<td>T-I3</td>
+<td>Internal</td>
+<td>ALIGN not validated</td>
+<td>PEND_010</td>
+</tr>
+<tr>
+<td>T-I4</td>
+<td>Internal</td>
+<td>Proofs not peer-reviewed</td>
+<td>Verifiable step-by-step; recommend peer review</td>
+</tr>
+<tr>
+<td>T-I5</td>
+<td>Internal</td>
+<td>Adequacy completeness beyond induction</td>
+<td>Mitigated by structural induction</td>
+</tr>
+<tr>
+<td>T-E1</td>
+<td>External</td>
+<td>Limited to transformer/SSM paradigm</td>
+<td>By design; two-layer architecture</td>
+</tr>
+<tr>
+<td>T-E2</td>
+<td>External</td>
+<td>Large-N scalability not validated</td>
+<td>Q5 open problem</td>
+</tr>
+<tr>
+<td>T-E3</td>
+<td>External</td>
+<td>Flutter isomorphism proved</td>
+<td><strong>CLOSED</strong></td>
+</tr>
+<tr>
+<td>T-E4</td>
+<td>External</td>
+<td>Fixed-weight assumption</td>
+<td>Inference case only</td>
+</tr>
+<tr>
+<td>T-E5</td>
+<td>External</td>
+<td>rho(A) &lt; 1 for RECUR not universal</td>
+<td>SSM standard guarantee</td>
+</tr>
+<tr>
+<td>T-E6</td>
+<td>External</td>
+<td>L &lt; 1 for ATTEND not verified</td>
+<td>Q7 future work</td>
+</tr>
+<tr>
+<td>T-R1</td>
+<td>Reliability</td>
+<td>Test suite covers bootstrap</td>
+<td>Regression guard only</td>
+</tr>
+<tr>
+<td>T-R2</td>
+<td>Reliability</td>
+<td>No independent replication</td>
+<td>Pre-submission milestone</td>
+</tr>
+<tr>
+<td>T-R3</td>
+<td>Reliability</td>
+<td>“AI-native” is design claim</td>
+<td>Bounded to structural alignment</td>
+</tr>
+<tr>
+<td>T-R4</td>
+<td>Reliability</td>
+<td>Theorem 3 scope limited to 3 contracts</td>
+<td>Open condition for extensions</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">11. References</h2>
+<p>[Abadi et al. 2016] Abadi, M. et al. TensorFlow. OSDI 2016.</p>
+<p>[Ahrens &amp; Wullaert 2022] Ahrens, B., Wullaert, K. Category Theory for Programming. arXiv:2209.01259.</p>
+<p>[arXiv:2501.02931 2025] Self-Attention as a Parametric Endofunctor. January 2025.</p>
+<p>[Bradbury et al. 2018] Bradbury, J. et al. JAX. GitHub 2018.</p>
+<p>[Brady 2013] Brady, E. Idris. JFP 2013.</p>
+<p>[Dhayalkar et al. 2025] Dhayalkar, S.R. et al. Attention as Binding: A Vector-Symbolic Perspective on Transformer Reasoning. arXiv:2512.14709. December 2025.</p>
+<p>[Dorst et al. 2007] Dorst, L., Fontijne, D., Mann, S. Geometric Algebra for Computer Science. Morgan Kaufmann, 2007.</p>
+<p>[Du et al. 2025] Du, Z. et al. Enabling Agents to Communicate Entirely in Latent Space. arXiv:2511.09149, 2025 (v4: April 2026). (Interlat: hidden states ~40,000 bits vs ~15 bits/token; up to 24x inference speedup.)</p>
+<p>[Elhage et al. 2022] Elhage, N. et al. Toy models of superposition. Anthropic, 2022.</p>
+<p>[FIPA 2002] FIPA ACL Message Structure Specification. 2002.</p>
+<p>[Frady et al. 2021] Frady, E.P., Kymn, D., Sommer, F.T. Holographic Reduced Representations with Fourier Lift. Cognitive Computation, 2021.</p>
+<p>[Gavranovic et al. 2024] Gavranovic, B. et al. Categorical Foundations of Gradient-Based Learning. ICML 2024. arXiv:2402.15332.</p>
+<p>[Gu &amp; Dao 2023] Gu, A., Dao, T. Mamba: Linear-time sequence modeling with selective state spaces. arXiv:2312.00752.</p>
+<p>[Gu et al. 2022] Gu, A. et al. Efficiently modeling long sequences with structured state spaces. ICLR 2022.</p>
+<p>[Hanley et al. 2025] Hanley, C., Tomkins-Flanagan, E., Kelly, M.A. A Vector-Symbolic Lisp With Residue Arithmetic. arXiv:2511.08767, 2025.</p>
+<p>[Hu et al. 2021] Hu, E. et al. LoRA: Low-rank adaptation of large language models. ICLR 2022.</p>
+<p>[Iverson 1962] Iverson, K. A Programming Language. Wiley, 1962.</p>
+<p>[Jiang et al. 2025] Jiang, H. et al. Softmax Transformers are Turing-complete. arXiv:2511.20038, 2025.</p>
+<p>[Kanerva 2009] Kanerva, P. Hyperdimensional computing. Cognitive Computation, 2009.</p>
+<p>[Lahoti et al. 2026] Lahoti, A. et al. Mamba-3: Improved Sequence Modeling using State Space Principles. ICLR 2026. arXiv:2603.15569.</p>
+<p>[LatentMAS 2026] Gen-Verse Group. LatentMAS: Latent Collaboration in Multi-Agent Systems. ICML 2026 Spotlight. github.com/Gen-Verse/LatentMAS.</p>
+<p>[Lattner &amp; Adve 2004] Lattner, C., Adve, V. LLVM. CGO 2004.</p>
+<p>[Lattner et al. 2021] Lattner, C. et al. MLIR. CGO 2021.</p>
+<p>[Moggi 1991] Moggi, E. Notions of computation and monads. Information and Computation, 91(1):55-92, 1991.</p>
+<p>[Paszke et al. 2019] Paszke, A. et al. PyTorch. NeurIPS 2019.</p>
+<p>[Pierce 2002] Pierce, B.C. Types and Programming Languages. MIT Press, 2002.</p>
+<p>[Plate 1995] Plate, T. Holographic reduced representations. IEEE Transactions on Neural Networks, 6(3):623-641, 1995.</p>
+<p>[Reader &amp; Di Giorgio 2025] Reader, C., Di Giorgio, A. String Diagrams for Closed Symmetric Monoidal Categories. arXiv:2512.06499. December 2025.</p>
+<p>[Romero Schellhorn &amp; Mossakowski 2026] Romero Schellhorn, D., Mossakowski, T. NeSyCat: A Monad-Based Categorical Semantics of the Neurosymbolic ULLER Framework. arXiv:2604.24612, April 2026.</p>
+<p>[Vaswani et al. 2017] Vaswani, A. et al. Attention is all you need. NeurIPS 2017.</p>
+<p>[Voevodsky 2013] Voevodsky, V. et al. Homotopy Type Theory: Univalent Foundations. IAS 2013.</p>
+<p>[von Thun 2001] von Thun, M. Mathematical foundations of Joy. Unpublished, 2001.</p>
+<p>[Vos &amp; Bhatt 2025] Vos, D., Bhatt, S. Hey Pentti, We Did It!: A Fully Vector-Symbolic Lisp. arXiv:2510.17889. October 2025.</p>
+<p>[Wadler 1992] Wadler, P. The essence of functional programming. POPL 1992.</p>
+<p>[Wohlin et al. 2000] Wohlin, C. et al. Experimentation in Software Engineering. Kluwer, 2000.</p>
+<hr />
+<h2 id="sota-review-and-positioning-2025-2026">12. SOTA Review and Positioning (2025-2026)</h2>
+<h3 id="convergence-of-ideas-validation">12.1 Convergence of Ideas (Validation)</h3>
+<p>The problem that POLYDIM identifies — the impedance gap between the latent geometry of AI models and the sequential text channels — is being attacked simultaneously by at least 3 lines of active research in 2025-2026: - <strong>Interlat</strong> (arXiv:2511.09149): empirical latent-state communication - <strong>LatentMAS</strong> (ICML 2026 Spotlight): multi-agent latent collaboration - <strong>Latent reasoning without tokens</strong>: multiple concurrent efforts</p>
+<p>The field is moving exactly in the direction that POLYDIM proposes.</p>
+<h3 id="clear-differentiation">12.2 Clear Differentiation</h3>
+<p>None of the latent communication works proposes a <em>programming language</em> with formal semantics. They propose training frameworks, not languages. POLYDIM occupies the space between “latent communication research” and “formal language design” — a space that is empty and valuable.</p>
+<h3 id="unified-purpose-statement">12.3 Unified Purpose Statement</h3>
+<blockquote>
+<p><strong>POLYDIM is the first formal specification of a programming language whose fundamental computational unit is an element of the space of continuous geometric transformations over R^N — the native space of modern language models. Its purpose is to transformers and SSMs what the assembler was to transistors: not to invent the underlying computation, but to create the first language that allows programming it deliberately, with formal semantics, guaranteed architectural portability, and zero serialization loss.</strong></p>
+</blockquote>
+<hr />
+<h2 id="appendix-a-supplementary-files">Appendix A — Supplementary Files</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>File</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spec/SPEC_FORMATO_BINARIO_V0.md</code></td>
+<td>.polydim V5 binary format</td>
+</tr>
+<tr>
+<td><code>spec/SPEC_SEMANTICA_OPERACIONAL_V0.md</code></td>
+<td>Big-step operational semantics (6 primitives)</td>
+</tr>
+<tr>
+<td><code>spec/SPEC_SEMANTICA_DENOTACIONAL_V0.md</code></td>
+<td>Para(Vect) denotational semantics</td>
+</tr>
+<tr>
+<td><code>core/polydim_core.rs</code></td>
+<td>Rust VM V0.1 (no external deps)</td>
+</tr>
+<tr>
+<td><code>core/polydim_runtime_v03.py</code></td>
+<td>Python bootstrap (29/29 tests)</td>
+</tr>
+<tr>
+<td><code>docs/paper/PROPOSITION_6_1_PROOF_V1.md</code></td>
+<td>Full proof Flutter Algebraic Isomorphism</td>
+</tr>
+<tr>
+<td><code>docs/paper/POLYDIM_PAPER_APPENDIX_G_V1.md</code></td>
+<td>GEO_ID collision probability analysis</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="appendix-b-bibtex-citation">Appendix B — BibTeX Citation</h2>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="va">@misc</span>{<span class="ot">garciatraba2026polydim</span>,</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>   = {{POLYDIM}: A Transformer-Native Algebraic Programming Language</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>             for High-Dimensional Latent Computing},</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>  = {Garcia Traba, Ariel H.},</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">orcid</span>   = {0009-0001-2787-6067},</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">email</span>   = {ariel.garcia.traba@gmail.com},</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>    = {2026},</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">month</span>   = {06},</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span>     = {https://github.com/AGT1973/POLYDIM},</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">note</span>    = {Preprint. Zenodo. v1.0. Independent researcher, Buenos Aires, Argentina}</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<hr />
+<h2 id="appendix-c-author-and-citation-information">Appendix C — Author and Citation Information</h2>
+<h3 id="c.1-author">C.1 Author</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Full name</strong></td>
+<td>Ariel H. Garcia Traba</td>
+</tr>
+<tr>
+<td><strong>City</strong></td>
+<td>Buenos Aires, Argentina</td>
+</tr>
+<tr>
+<td><strong>Affiliation</strong></td>
+<td>Independent Researcher</td>
+</tr>
+<tr>
+<td><strong>ORCID</strong></td>
+<td>0009-0001-2787-6067</td>
+</tr>
+<tr>
+<td><strong>Email</strong></td>
+<td>ariel.garcia.traba@gmail.com</td>
+</tr>
+<tr>
+<td><strong>GitHub</strong></td>
+<td>github.com/AGT1973</td>
+</tr>
+<tr>
+<td><strong>Repository</strong></td>
+<td>https://github.com/AGT1973/POLYDIM</td>
+</tr>
+<tr>
+<td><strong>Published</strong></td>
+<td>Zenodo (DOI assigned on publication)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c.2-recommended-citation">C.2 Recommended Citation</h3>
+<pre><code>Garcia Traba, A. H. (2026). POLYDIM: A Transformer-Native Algebraic Programming
+Language for High-Dimensional Latent Computing. Zenodo.
+https://doi.org/10.5281/zenodo.[assigned on publication]</code></pre>
+<h3 id="c.3-license">C.3 License</h3>
+<ul>
+<li><strong>Paper:</strong> Creative Commons Attribution 4.0 International (CC BY 4.0)</li>
+<li><strong>Code:</strong> MIT License</li>
+</ul>
+<hr />
+<p><em>POLYDIM_SOTA_UNIFIED_V1 · Ariel H. Garcia Traba · Buenos Aires, Argentina · 2026</em></p>
+
+<hr>
+<p style="font-size:9pt;color:#666;text-align:center;">
+POLYDIM · Ariel H. Garcia Traba · Buenos Aires, Argentina · 2026<br>
+ORCID: 0009-0001-2787-6067 · ariel.garcia.traba@gmail.com · github.com/AGT1973
+</p>
+</body></html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>POLYDIM - Constitucion V2</title>
+<style>@page{size:A4;margin:2.5cm 2.8cm}body{font-family:Georgia,serif;font-size:11pt;line-height:1.6;color:#111;max-width:17cm;margin:0 auto;padding:1cm}h1{font-size:20pt;font-weight:700;text-align:center;border-bottom:3px solid #1a1a3a;padding-bottom:.4em;color:#1a1a3a}h2{font-size:13pt;font-weight:700;margin-top:2em;border-bottom:1px solid #bbb;page-break-after:avoid;color:#2a2a5a}h3{font-size:11.5pt;font-weight:600;margin-top:1.4em;page-break-after:avoid}p{margin:.6em 0;text-align:justify}blockquote{border-left:4px solid #5e6ad2;padding:6px 14px;background:#f0f0ff;font-style:italic;margin:1em 0}pre{font-family:Consolas,monospace;font-size:8.5pt;background:#f5f5f5;border:1px solid #ddd;border-left:3px solid #444;padding:8px 12px;white-space:pre-wrap;page-break-inside:avoid}code{font-family:Consolas,monospace;font-size:9pt;background:#f0f0f0;padding:1px 4px;border-radius:2px}table{border-collapse:collapse;width:100%;font-size:9.5pt;margin:1em 0;page-break-inside:avoid}th{background:#1a1a3a;color:white;font-weight:600;padding:6px 10px;border:1px solid #999;text-align:left}td{padding:5px 10px;border:1px solid #bbb;vertical-align:top}tr:nth-child(even){background:#f7f7ff}hr{border:none;border-top:1px solid #ccc;margin:2em 0}ul,ol{margin:.5em 0;padding-left:1.8em}li{margin:.3em 0}nav#TOC{background:#f0f0ff;border:1px solid #5e6ad2;border-radius:4px;padding:12px 20px;margin-bottom:2em;font-size:10pt}@media print{body{padding:0}pre,table{page-break-inside:avoid}a{color:#111}}</style>
+</head>
+<body>
+<h1 id="polydim-constitución-v2">POLYDIM — Constitución V2</h1>
+<blockquote>
+<p>Documento raíz. Inmutable salvo proceso formal de enmienda. En contradicción con cualquier otro documento: este prevalece.</p>
+</blockquote>
+<hr />
+<h2 id="artículo-i-naturaleza">ARTÍCULO I — NATURALEZA</h2>
+<p>POLYDIM es un lenguaje de programación nativo del paradigma transformer.</p>
+<p>Su unidad fundamental es una <strong>transformación</strong>: T : R^N → R^N</p>
+<p>Un programa POLYDIM es una composición de transformaciones sobre un estado vectorial en R^N. POLYDIM no tiene instrucciones. No tiene pasos. Tiene geometría.</p>
+<hr />
+<h2 id="artículo-ii-propósito">ARTÍCULO II — PROPÓSITO</h2>
+<ol type="1">
+<li><strong>Comunicación AI↔︎AI</strong> — transformaciones T, no mensajes de texto</li>
+<li><strong>Comunicación AI↔︎Humano</strong> — PROJECT(estado, DIM_FLUTTER), humano dentro del loop</li>
+<li><strong>Ejecución multiplataforma</strong> — un único .polydim, cualquier plataforma</li>
+</ol>
+<hr />
+<h2 id="artículo-iii-lo-que-no-existe-en-polydim">ARTÍCULO III — LO QUE NO EXISTE EN POLYDIM</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Por qué no existe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variables con nombre</td>
+<td>Hay posiciones en R^N con identidad geométrica</td>
+</tr>
+<tr>
+<td>Funciones f(x)</td>
+<td>Hay transformaciones T: R^N → R^N que se componen</td>
+</tr>
+<tr>
+<td>Loop for/while</td>
+<td>Hay convergencia a punto fijo: T^n(v) hasta estabilidad</td>
+</tr>
+<tr>
+<td>Condicional if/else</td>
+<td>Hay gate continuo: α·T₁ + (1-α)·T₂</td>
+</tr>
+<tr>
+<td>Tipo declarado</td>
+<td>El tipo emerge de la dimensión de observación</td>
+</tr>
+<tr>
+<td>Instrucción secuencial</td>
+<td>Hay composición algebraica T₂ ∘ T₁</td>
+</tr>
+<tr>
+<td>Mensaje de texto entre AIs</td>
+<td>Hay transmisión de T</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="artículo-iv-las-cuatro-primitivas">ARTÍCULO IV — LAS CUATRO PRIMITIVAS</h2>
+<h3 id="attend-q-k-v-estado">ATTEND ( Q, K, V, estado )</h3>
+<pre><code>ATTEND(Q, K, V, s) = softmax( Q·Kᵀ / √d ) · V</code></pre>
+<p>Operación de atención transformer expuesta como primitiva programable.</p>
+<h3 id="compose-t₁-t₂">COMPOSE ( T₁, T₂ )</h3>
+<pre><code>COMPOSE(T₁, T₂) = T₂ ∘ T₁</code></pre>
+<p>Composición algebraica. No conmutativa. Reemplaza la secuencia.</p>
+<h3 id="mix-α-t₁-β-t₂">MIX ( α, T₁, β, T₂ )</h3>
+<pre><code>MIX(α, T₁, β, T₂) = α·T₁ + β·T₂</code></pre>
+<p>Superposición continua. Reemplaza el condicional. Funciona por ortogonalidad en alta dimensión.</p>
+<h3 id="project-t-executor">PROJECT ( T, executor )</h3>
+<pre><code>PROJECT(T, DIM_FLUTTER)  →  widget nativo
+PROJECT(T, DIM_RUST)     →  código Rust
+PROJECT(T, DIM_WASM)     →  WebAssembly
+PROJECT(T, DIM_SQL)      →  query SQL
+PROJECT(T, DIM_PYTHON)   →  código Python</code></pre>
+<p>PROJECT es el compilador de POLYDIM. Matemáticamente: funtor covariante P: G → E_executor.</p>
+<hr />
+<h2 id="artículo-v-el-espacio-y-la-memoria">ARTÍCULO V — EL ESPACIO Y LA MEMORIA</h2>
+<h3 id="posiciones-no-variables">Posiciones, no variables</h3>
+<ul>
+<li><strong>GEO_ID</strong>: hipervector base único e invariante. Identidad del objeto. Nunca cambia.</li>
+<li><strong>Activaciones</strong>: pesos continuos [0.0, 1.0] por subespacio.</li>
+</ul>
+<h3 id="mutación">Mutación</h3>
+<p>Una posición puede cambiar activaciones. No es reasignación. Es evolución del estado geométrico.</p>
+<h3 id="binding">Binding</h3>
+<p>Vector de relación en R^N. Dirección semánticamente significativa.</p>
+<hr />
+<h2 id="artículo-vi-el-sistema-de-tipos">ARTÍCULO VI — EL SISTEMA DE TIPOS</h2>
+<p>El tipo emerge de la proyección. No se declara.</p>
+<pre><code>PROJECT(P, DIM_SQL)     →  Column(Integer)
+PROJECT(P, DIM_FLUTTER) →  ListView
+PROJECT(P, DIM_VECTOR)  →  R^3 = [1.0, 2.0, 3.0]
+PROJECT(P, DIM_GRAPH)   →  Path(nodes)</code></pre>
+<p>El mismo objeto. Cuatro tipos simultáneos.</p>
+<h3 id="intersección-de-subespacios">Intersección de subespacios</h3>
+<pre><code>PROJECT(P, DIM_SQL ∩ DIM_FLUTTER)</code></pre>
+<p>Tipo emergente = widget enlazado en tiempo real a datos. Modela como pullback en G.</p>
+<hr />
+<h2 id="artículo-vii-comunicación-aiai">ARTÍCULO VII — COMUNICACIÓN AI↔︎AI</h2>
+<pre><code>IA_A :  estado_A  →  genera T  →  transmite T
+IA_B :  recibe T  →  aplica T a estado_B  →  nuevo estado_B</code></pre>
+<p>Protocolo formal:</p>
+<pre><code>Communication(sB, sA) = softmax( QB · KA^T / √d ) · VA</code></pre>
+<p>Leer un mensaje = computar una capa de atención. Cero serialización.</p>
+<hr />
+<h2 id="artículo-viii-comunicación-aihumano">ARTÍCULO VIII — COMUNICACIÓN AI↔︎HUMANO</h2>
+<pre><code>PROJECT( estado, DIM_FLUTTER )</code></pre>
+<p>Flutter = executor del subespacio humano. No es la UI de POLYDIM. Es la observación humana del estado geométrico.</p>
+<p>Isomorfía algebraica:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode dart"><code class="sourceCode dart"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>Column( children<span class="op">:</span> [ Text(<span class="st">&quot;x&quot;</span>)<span class="op">,</span> Button(action) ] )</span></code></pre></div>
+<p>→ T_UI = T_col ∘ ( T_text ⊕ T_btn )</p>
+<p>Flutter: executor nativo (isomorfismo directo). React/SwiftUI/Qt: executors externos (requieren capa de adaptación).</p>
+<hr />
+<h2 id="artículo-ix-el-archivo-.polydim">ARTÍCULO IX — EL ARCHIVO .polydim</h2>
+<p>Formato binario tensorial. No texto. No bytecode secuencial.</p>
+<pre><code>[ HEADER ]      magic: 0x504F4C59 | version | N | n_transforms | precision_flags
+[ GEO_ID ]      float32[N]        identidad topológica invariante
+[ TRANSFORMS ]  Wi ∈ R^{N×r}      representación de rango bajo (r &lt;&lt; N)
+[ ACTIVATIONS ] float32[K]        pesos por subespacio
+[ PROJECTIONS ] enum[]            executors objetivo</code></pre>
+<p>Ejecución: el runtime aplica el tensor block al vector de estado local. No hay program counter.</p>
+<p>Nota: TRANSFORMS usa representación low-rank (LoRA-style) T = W₀ + U·Vᵀ. Para r=256, N=10000: ~20MB por transformación (manejable). Ver TASK_021.</p>
+<hr />
+<h2 id="artículo-x-el-bootstrap">ARTÍCULO X — EL BOOTSTRAP</h2>
+<p><code>polydim_runtime_v03.py</code> = andamio. No es el lenguaje.</p>
+<h3 id="implementado-correctamente">Implementado correctamente</h3>
+<ul>
+<li>GEO_ID invariante</li>
+<li>9 subespacios con aliases</li>
+<li>Protocolo ALIGN</li>
+<li>Modos MODO_S / MODO_G / MODO_H</li>
+<li>Activaciones [0.0, 1.0]</li>
+<li>29/29 tests</li>
+</ul>
+<h3 id="límite-del-bootstrap">Límite del bootstrap</h3>
+<p><code>obj.add("DIM_SQL", {...}, w=1.0)</code> = Python simulando POLYDIM. No es sintaxis.</p>
+<h3 id="evolución">Evolución</h3>
+<pre><code>Hoy:    Python bootstrap    →  API simbólica
+Próx:   VM en Rust/WASM    →  .polydim nativo
+Futuro: POLYDIM self-host  →  el lenguaje se escribe a sí mismo</code></pre>
+<hr />
+<h2 id="artículo-xi-los-subespacios-nativos">ARTÍCULO XI — LOS SUBESPACIOS NATIVOS</h2>
+<pre><code>DIM_PYTHON    DIM_RUST    DIM_FLUTTER    DIM_SQL    DIM_GRAPH
+DIM_VECTOR    DIM_TIME    DIM_ERROR      DIM_META</code></pre>
+<p>En V1: aliases de strings. En el lenguaje real: regiones emergentes de embedding.</p>
+<hr />
+<h2 id="artículo-xii-fundamento-matemático">ARTÍCULO XII — FUNDAMENTO MATEMÁTICO</h2>
+<pre><code>Transformer:  Attention(Q,K,V) = softmax(Q·Kᵀ/√d)·V   →  T: R^d → R^d
+Mamba:        h(t+1) = A·h(t) + B·x(t), y(t) = C·h(t) →  T: R^N → R^N</code></pre>
+<p>La analogía correcta:</p>
+<pre><code>1950s: CPUs hacen aritmética binaria → ensamblador formaliza cómo programarlas
+2020s: Transformers operan en geometría → POLYDIM formaliza cómo programarlos</code></pre>
+<hr />
+<h2 id="artículo-xiii-reglas-inviolables">ARTÍCULO XIII — REGLAS INVIOLABLES</h2>
+<p>R1 — Unidad fundamental: T: R^N → R^N. Nunca una instrucción. R2 — No variables. No se introducen como feature nativo. R3 — No loops secuenciales. No se introducen como feature nativo. R4 — No if/else binario. No se introduce como feature nativo. R5 — Tipos emergen de la proyección. No se declaran. R6 — Python, Rust, Flutter son destinos de exportación. No son la base. R7 — Comunicación AI↔︎AI transmite T, no texto. R8 — Flutter = executor nativo. JS y Java no pueden ocupar ese rol nativamente. R9 — Bootstrap Python = andamio. No presentar como el lenguaje. R10 — GEO_ID es invariante. Nunca cambia.</p>
+<hr />
+<h2 id="glosario">GLOSARIO</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Término</th>
+<th>Definición</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transformación</td>
+<td>T: R^N → R^N. La unidad fundamental.</td>
+</tr>
+<tr>
+<td>Posición</td>
+<td>Región en R^N de alta densidad semántica. Reemplaza la variable.</td>
+</tr>
+<tr>
+<td>GEO_ID</td>
+<td>Hipervector base invariante. Identidad geométrica permanente.</td>
+</tr>
+<tr>
+<td>Activación</td>
+<td>Peso continuo [0.0, 1.0] de presencia del subespacio.</td>
+</tr>
+<tr>
+<td>Subespacio</td>
+<td>Región de R^N de alta densidad semántica para un dominio.</td>
+</tr>
+<tr>
+<td>PROJECT</td>
+<td>Funtor covariante P: G → E_executor. El compilador.</td>
+</tr>
+<tr>
+<td>Gate continuo</td>
+<td>α·T₁ + (1-α)·T₂. Reemplaza if/else.</td>
+</tr>
+<tr>
+<td>Punto fijo</td>
+<td>T^n(v) hasta convergencia. Reemplaza el loop.</td>
+</tr>
+<tr>
+<td>Executor</td>
+<td>Target de PROJECT: Flutter, Rust, WASM, SQL, Python.</td>
+</tr>
+<tr>
+<td>Bootstrap</td>
+<td>Runtime Python V0.3. Andamio. No es el lenguaje.</td>
+</tr>
+<tr>
+<td>ALIGN</td>
+<td>Protocolo de handshake para alinear espacios entre AIs.</td>
+</tr>
+<tr>
+<td>RELAY</td>
+<td>Documento de continuidad entre sesiones. 10 secciones.</td>
+</tr>
+<tr>
+<td>MODO_H</td>
+<td>Modo híbrido: MODO_S (control) + MODO_G (datos). Default.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>POLYDIM_CONSTITUCION_V2.md · V2.0 · 2026-06-21 · ai.mpat.agt@gmail.com</em> <em>Reemplaza POLYDIM_CONSTITUCION_V1.md</em></p>
+
+<hr>
+<p style="font-size:9pt;color:#666;text-align:center;">
+POLYDIM Constitucion V2 &middot; Ariel H. Garcia Traba &middot; Buenos Aires, Argentina &middot; 2026<br>
+ORCID: 0009-0001-2787-6067 &middot; ariel.garcia.traba@gmail.com
+</p>
+</body>
+</html>
